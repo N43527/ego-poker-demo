@@ -122,7 +122,8 @@ function App() {
       actions: [],
       pot: 0,
       currentTurn: null,
-      deck: []
+      deck: [],
+      faceUps: []
     });
     setGameId(newGameId);
   };
@@ -147,15 +148,24 @@ function App() {
 
     const deck = buildDeck();
     const hands = {};
+    // card #1
     Object.keys(gameData.players).forEach(pid => {
-      hands[pid] = [deck.pop(), deck.pop()];
+      hands[pid] = [deck.pop()];
     });
+    // card #2
+    Object.keys(gameData.players).forEach(pid => {
+      hands[pid].push(deck.pop());
+    });
+
+    const burned = deck.pop();
+    const faceUps = [deck.pop(), deck.pop(), deck.pop(), deck.pop(), deck.pop()];
 
     const firstTurn = Object.keys(gameData.players)[0];
     await updateDoc(doc(db, 'games', gameId), {
       status: 'in-progress',
       deck,
       hands,
+      faceUps,
       pot: 0,
       actions: [],
       currentTurn: firstTurn
@@ -246,6 +256,8 @@ function App() {
             <div>
               <h3>Your Hand:</h3>
               <p>{gameData.hands?.[localPlayerId]?.join(', ') || 'Not dealt'}</p>
+              <h3>Center Cards:</h3>
+              <p>{gameData.faceUps?.join(', ') || 'Not dealt'}</p>
               <h3>Actions:</h3>
               <ul>
                 {gameData.actions?.map((a, i) => (
