@@ -1,7 +1,15 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion, query, collection, where, getDocs } from 'firebase/firestore'; // Import query, collection, where, getDocs
+
+// Helper to generate a UUID (similar to your current player ID but longer for more uniqueness)
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 const firebaseConfig = {
   apiKey: "AIzaSyBpZUfu31W_0z9CxI2tVGc6fIwDpAq5lD0",
@@ -12,23 +20,39 @@ const firebaseConfig = {
   appId: "1:6937934046:web:75038e4b2227be6f28ea4f"
 };
 
-
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 function App() {
   const [playerName, setPlayerName] = useState('');
+  const [passkey, setPasskey] = useState(''); // New state for passkey
   const [gameId, setGameId] = useState('');
-  const [gameData, setGameData] = useState(null); // Stores real-time game state
+  const [gameData, setGameData] = useState(null);
   const [joinInput, setJoinInput] = useState('');
   const [messageInput, setMessageInput] = useState('');
-  const [currentPlayerId, setCurrentPlayerId] = useState(''); // Unique ID for this client
+  const [localPlayerId, setLocalPlayerId] = useState(''); // This will be the persistent ID
+  const [isRegistered, setIsRegistered] = useState(false); // To track if current localPlayerId has a profile
 
-  // Generate a unique ID for this player session
+  // --- Initial setup for persistent localPlayerId ---
   useEffect(() => {
-    setCurrentPlayerId(Math.random().toString(36).substring(2, 9));
-  }, []);
+    let storedPlayerId = localStorage.getItem('localPlayerId');
+    if (!storedPlayerId) {
+      storedPlayerId = generateUUID();
+      localStorage.setItem('localPlayerId', storedPlayerId);
+    }
+    setLocalPlayerId(storedPlayerId);
+
+    // Check if this localPlayerId has an existing profile
+    const checkProfile = async () => {
+      const profileRef = doc(db, 'profiles', storedPlayerId);
+      const profileSnap = await getDoc(profileRef);
+      if (profileSnap.exists()) {
+        setIsRegistered(true);
+        setPlayerName(profileSnap.data().name); // Pre-fill name if registered
+      }
+    };
+    checkProfile();
+  }, []); // Run once on component mount
 
   // Listen for real-time updates to the game document
   useEffect(() => {
@@ -41,22 +65,68 @@ function App() {
       } else {
         console.log("No such game!");
         setGameData(null);
-        setGameId(''); // Clear gameId if game disappears
+        setGameId('');
       }
     });
 
-    return () => unsubscribe(); // Cleanup the listener
-  }, [gameId]); // Re-run effect if gameId changes
+    return () => unsubscribe();
+  }, [gameId]);
+
+  // --- New Registration/Login Functions ---
+
+  const registerProfile = async () => {
+    if (!playerName || !passkey) { alert('Please enter both name and passkey!'); return; }
+    if (localPlayerId === '') { alert('Error: No local player ID found.'); return; }
+
+    const profileRef = doc(db, 'profiles', localPlayerId);
+    const profileSnap = await getDoc(profileRef);
+
+    if (profileSnap.exists()) {
+      alert('This device already has a profile registered. If you want to use a different one, please use "Reconnect with Passkey" or clear your browser data.');
+      return;
+    }
+
+    await setDoc(profileRef, {
+      name: playerName,
+      passkey: passkey // INSECURE for production, for demo simplicity
+    });
+    setIsRegistered(true);
+    alert('Profile registered successfully!');
+  };
+
+  const reconnectWithPasskey = async () => {
+    if (!playerName || !passkey) { alert('Please enter both name and passkey to reconnect!'); return; }
+
+    // Query for a profile matching name AND passkey
+    const profilesRef = collection(db, 'profiles');
+    const q = query(profilesRef, where('name', '==', playerName), where('passkey', '==', passkey));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      // Found a matching profile
+      const profileDoc = querySnapshot.docs[0];
+      const retrievedPlayerId = profileDoc.id; // The document ID is the localPlayerId we need
+
+      localStorage.setItem('localPlayerId', retrievedPlayerId); // Update local storage
+      setLocalPlayerId(retrievedPlayerId); // Update state
+      setIsRegistered(true);
+      alert(`Reconnected as ${playerName}!`);
+    } else {
+      alert('No profile found with that name and passkey combination.');
+    }
+  };
+
+  // --- Game Functions (Modified to use localPlayerId) ---
 
   const createGame = async () => {
-    if (!playerName) { alert('Please enter your name!'); return; }
+    if (!playerName || !isRegistered) { alert('Please register or reconnect your player profile first!'); return; }
     const newGameId = Math.random().toString(36).substring(2, 6).toUpperCase();
     const gameRef = doc(db, 'games', newGameId);
 
     await setDoc(gameRef, {
       status: 'waiting',
       players: {
-        [currentPlayerId]: { name: playerName, lastSeen: Date.now() }
+        [localPlayerId]: { name: playerName, lastSeen: Date.now() }
       },
       chatLog: []
     });
@@ -64,7 +134,7 @@ function App() {
   };
 
   const joinGame = async () => {
-    if (!playerName) { alert('Please enter your name!'); return; }
+    if (!playerName || !isRegistered) { alert('Please register or reconnect your player profile first!'); return; }
     if (!joinInput) { alert('Please enter a Game ID!'); return; }
 
     const gameRef = doc(db, 'games', joinInput.toUpperCase());
@@ -73,7 +143,7 @@ function App() {
     if (docSnap.exists()) {
       // Add current player to the game
       await updateDoc(gameRef, {
-        [`players.${currentPlayerId}`]: { name: playerName, lastSeen: Date.now() }
+        [`players.${localPlayerId}`]: { name: playerName, lastSeen: Date.now() }
       });
       setGameId(joinInput.toUpperCase());
     } else {
@@ -82,17 +152,17 @@ function App() {
   };
 
   const sendMessage = async () => {
-    if (!gameId || !messageInput) return;
+    if (!gameId || !messageInput || !localPlayerId) return;
     const gameRef = doc(db, 'games', gameId);
     await updateDoc(gameRef, {
       chatLog: arrayUnion({
-        senderId: currentPlayerId,
+        senderId: localPlayerId,
         senderName: playerName,
         message: messageInput,
         timestamp: Date.now()
       })
     });
-    setMessageInput(''); // Clear input after sending
+    setMessageInput('');
   };
 
   return (
@@ -102,23 +172,43 @@ function App() {
       {!gameId ? (
         // Pre-game Lobby UI
         <div>
-          <input
-            type="text"
-            placeholder="Your Name"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            style={{ marginRight: '10px', padding: '8px' }}
-          />
-          <button onClick={createGame} style={{ padding: '8px 15px', marginRight: '10px' }}>Create New Game</button>
-          <br /><br />
-          <input
-            type="text"
-            placeholder="Enter Game ID"
-            value={joinInput}
-            onChange={(e) => setJoinInput(e.target.value)}
-            style={{ marginRight: '10px', padding: '8px' }}
-          />
-          <button onClick={joinGame} style={{ padding: '8px 15px' }}>Join Game</button>
+          {!isRegistered && ( // Show registration/reconnect only if not registered
+            <>
+              <input
+                type="text"
+                placeholder="Your Name"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                style={{ marginRight: '10px', padding: '8px' }}
+              />
+              <input
+                type="password" // Use password type to obscure input
+                placeholder="Passkey"
+                value={passkey}
+                onChange={(e) => setPasskey(e.target.value)}
+                style={{ marginRight: '10px', padding: '8px' }}
+              />
+              <button onClick={registerProfile} style={{ padding: '8px 15px', marginRight: '10px' }}>Register New Profile</button>
+              <button onClick={reconnectWithPasskey} style={{ padding: '8px 15px' }}>Reconnect with Passkey</button>
+              <br /><br />
+            </>
+          )}
+
+          {isRegistered && ( // Show game creation/joining if registered
+            <>
+              <p>Welcome back, <strong>{playerName}</strong>!</p>
+              <button onClick={createGame} style={{ padding: '8px 15px', marginRight: '10px' }}>Create New Game</button>
+              <br /><br />
+              <input
+                type="text"
+                placeholder="Enter Game ID"
+                value={joinInput}
+                onChange={(e) => setJoinInput(e.target.value)}
+                style={{ marginRight: '10px', padding: '8px' }}
+              />
+              <button onClick={joinGame} style={{ padding: '8px 15px' }}>Join Game</button>
+            </>
+          )}
         </div>
       ) : (
         // In-game Lobby UI
@@ -128,7 +218,7 @@ function App() {
           <ul>
             {gameData && Object.entries(gameData.players).map(([id, player]) => (
               <li key={id}>
-                {player.name} {id === currentPlayerId ? '(You)' : ''}
+                {player.name} {id === localPlayerId ? '(You)' : ''}
               </li>
             ))}
           </ul>
