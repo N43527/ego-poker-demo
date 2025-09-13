@@ -1,14 +1,28 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion, query, collection, where, getDocs } from 'firebase/firestore'; // Import query, collection, where, getDocs
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion, query, collection, where, getDocs } from 'firebase/firestore';
 
-// Helper to generate a UUID (similar to your current player ID but longer for more uniqueness)
+// Helper to generate a UUID
 const generateUUID = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+};
+
+// --- Poker helpers ---
+const suits = ['S', 'H', 'D', 'C'];
+const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+
+const buildDeck = () => {
+  const deck = [];
+  for (let s of suits) {
+    for (let r of ranks) {
+      deck.push(`${r}${s}`);
+    }
+  }
+  return deck.sort(() => Math.random() - 0.5);
 };
 
 const firebaseConfig = {
@@ -25,15 +39,15 @@ const db = getFirestore(app);
 
 function App() {
   const [playerName, setPlayerName] = useState('');
-  const [passkey, setPasskey] = useState(''); // New state for passkey
+  const [passkey, setPasskey] = useState('');
   const [gameId, setGameId] = useState('');
   const [gameData, setGameData] = useState(null);
   const [joinInput, setJoinInput] = useState('');
   const [messageInput, setMessageInput] = useState('');
-  const [localPlayerId, setLocalPlayerId] = useState(''); // This will be the persistent ID
-  const [isRegistered, setIsRegistered] = useState(false); // To track if current localPlayerId has a profile
+  const [localPlayerId, setLocalPlayerId] = useState('');
+  const [isRegistered, setIsRegistered] = useState(false);
 
-  // --- Initial setup for persistent localPlayerId ---
+  // --- Initial setup ---
   useEffect(() => {
     let storedPlayerId = localStorage.getItem('localPlayerId');
     if (!storedPlayerId) {
@@ -42,106 +56,82 @@ function App() {
     }
     setLocalPlayerId(storedPlayerId);
 
-    // Check if this localPlayerId has an existing profile
     const checkProfile = async () => {
       const profileRef = doc(db, 'profiles', storedPlayerId);
       const profileSnap = await getDoc(profileRef);
       if (profileSnap.exists()) {
         setIsRegistered(true);
-        setPlayerName(profileSnap.data().name); // Pre-fill name if registered
+        setPlayerName(profileSnap.data().name);
       }
     };
     checkProfile();
-  }, []); // Run once on component mount
+  }, []);
 
-  // Listen for real-time updates to the game document
+  // --- Listen for real-time updates ---
   useEffect(() => {
     if (!gameId) return;
-
     const gameRef = doc(db, 'games', gameId);
     const unsubscribe = onSnapshot(gameRef, (docSnap) => {
       if (docSnap.exists()) {
         setGameData(docSnap.data());
       } else {
-        console.log("No such game!");
         setGameData(null);
         setGameId('');
       }
     });
-
     return () => unsubscribe();
   }, [gameId]);
 
-  // --- New Registration/Login Functions ---
-
+  // --- Registration/Login ---
   const registerProfile = async () => {
-    if (!playerName || !passkey) { alert('Please enter both name and passkey!'); return; }
-    if (localPlayerId === '') { alert('Error: No local player ID found.'); return; }
-
+    if (!playerName || !passkey) { alert('Enter both name and passkey!'); return; }
     const profileRef = doc(db, 'profiles', localPlayerId);
     const profileSnap = await getDoc(profileRef);
-
-    if (profileSnap.exists()) {
-      alert('This device already has a profile registered. If you want to use a different one, please use "Reconnect with Passkey" or clear your browser data.');
-      return;
-    }
-
-    await setDoc(profileRef, {
-      name: playerName,
-      passkey: passkey // INSECURE for production, for demo simplicity
-    });
+    if (profileSnap.exists()) { alert('This device already has a profile.'); return; }
+    await setDoc(profileRef, { name: playerName, passkey });
     setIsRegistered(true);
-    alert('Profile registered successfully!');
   };
 
   const reconnectWithPasskey = async () => {
-    if (!playerName || !passkey) { alert('Please enter both name and passkey to reconnect!'); return; }
-
-    // Query for a profile matching name AND passkey
+    if (!playerName || !passkey) return;
     const profilesRef = collection(db, 'profiles');
     const q = query(profilesRef, where('name', '==', playerName), where('passkey', '==', passkey));
     const querySnapshot = await getDocs(q);
-
     if (!querySnapshot.empty) {
-      // Found a matching profile
       const profileDoc = querySnapshot.docs[0];
-      const retrievedPlayerId = profileDoc.id; // The document ID is the localPlayerId we need
-
-      localStorage.setItem('localPlayerId', retrievedPlayerId); // Update local storage
-      setLocalPlayerId(retrievedPlayerId); // Update state
+      const retrievedPlayerId = profileDoc.id;
+      localStorage.setItem('localPlayerId', retrievedPlayerId);
+      setLocalPlayerId(retrievedPlayerId);
       setIsRegistered(true);
-      alert(`Reconnected as ${playerName}!`);
     } else {
-      alert('No profile found with that name and passkey combination.');
+      alert('No profile found with that name/passkey.');
     }
   };
 
-  // --- Game Functions (Modified to use localPlayerId) ---
-
+  // --- Game functions ---
   const createGame = async () => {
-    if (!playerName || !isRegistered) { alert('Please register or reconnect your player profile first!'); return; }
+    if (!isRegistered) return;
     const newGameId = Math.random().toString(36).substring(2, 6).toUpperCase();
     const gameRef = doc(db, 'games', newGameId);
-
     await setDoc(gameRef, {
       status: 'waiting',
-      players: {
-        [localPlayerId]: { name: playerName, lastSeen: Date.now() }
-      },
-      chatLog: []
+      host: localPlayerId,
+      players: { [localPlayerId]: { name: playerName, lastSeen: Date.now() } },
+      chatLog: [],
+      hands: {},
+      actions: [],
+      pot: 0,
+      currentTurn: null,
+      deck: []
     });
     setGameId(newGameId);
   };
 
   const joinGame = async () => {
-    if (!playerName || !isRegistered) { alert('Please register or reconnect your player profile first!'); return; }
-    if (!joinInput) { alert('Please enter a Game ID!'); return; }
-
+    if (!isRegistered || !joinInput) return;
     const gameRef = doc(db, 'games', joinInput.toUpperCase());
     const docSnap = await getDoc(gameRef);
-
     if (docSnap.exists()) {
-      // Add current player to the game
       await updateDoc(gameRef, {
         [`players.${localPlayerId}`]: { name: playerName, lastSeen: Date.now() }
       });
@@ -151,8 +141,54 @@ function App() {
     }
   };
 
+  const startGame = async () => {
+    if (!gameId || !gameData) return;
+    if (gameData.host !== localPlayerId) { alert('Only host can start'); return; }
+
+    const deck = buildDeck();
+    const hands = {};
+    Object.keys(gameData.players).forEach(pid => {
+      hands[pid] = [deck.pop(), deck.pop()];
+    });
+
+    const firstTurn = Object.keys(gameData.players)[0];
+    await updateDoc(doc(db, 'games', gameId), {
+      status: 'in-progress',
+      deck,
+      hands,
+      pot: 0,
+      actions: [],
+      currentTurn: firstTurn
+    });
+  };
+
+  const performAction = async (action) => {
+    if (!gameId || !gameData) return;
+    if (gameData.currentTurn !== localPlayerId) return;
+
+    const players = Object.keys(gameData.players);
+    const currentIndex = players.indexOf(localPlayerId);
+    const nextTurn = players[(currentIndex + 1) % players.length];
+
+    await updateDoc(doc(db, 'games', gameId), {
+      actions: arrayUnion({
+        playerId: localPlayerId,
+        name: playerName,
+        action,
+        timestamp: Date.now()
+      }),
+      currentTurn: nextTurn
+    });
+  };
+
+  const endGame = async () => {
+    if (!gameId || !gameData) return;
+    if (gameData.host !== localPlayerId) return;
+    await updateDoc(doc(db, 'games', gameId), { status: 'ended' });
+  };
+
   const sendMessage = async () => {
-    if (!gameId || !messageInput || !localPlayerId) return;
+    if (!gameId || !messageInput) return;
     const gameRef = doc(db, 'games', gameId);
     await updateDoc(gameRef, {
       chatLog: arrayUnion({
@@ -165,81 +201,82 @@ function App() {
     setMessageInput('');
   };
 
+  // --- UI ---
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '20px' }}>
       <h1>♠ Ego Poker Demo Lobby</h1>
 
       {!gameId ? (
-        // Pre-game Lobby UI
         <div>
-          {!isRegistered && ( // Show registration/reconnect only if not registered
+          {!isRegistered && (
             <>
-              <input
-                type="text"
-                placeholder="Your Name"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                style={{ marginRight: '10px', padding: '8px' }}
-              />
-              <input
-                type="password" // Use password type to obscure input
-                placeholder="Passkey"
-                value={passkey}
-                onChange={(e) => setPasskey(e.target.value)}
-                style={{ marginRight: '10px', padding: '8px' }}
-              />
-              <button onClick={registerProfile} style={{ padding: '8px 15px', marginRight: '10px' }}>Register New Profile</button>
-              <button onClick={reconnectWithPasskey} style={{ padding: '8px 15px' }}>Reconnect with Passkey</button>
-              <br /><br />
+              <input placeholder="Your Name" value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)} />
+              <input type="password" placeholder="Passkey" value={passkey}
+                onChange={(e) => setPasskey(e.target.value)} />
+              <button onClick={registerProfile}>Register</button>
+              <button onClick={reconnectWithPasskey}>Reconnect</button>
             </>
           )}
-
-          {isRegistered && ( // Show game creation/joining if registered
+          {isRegistered && (
             <>
-              <p>Welcome back, <strong>{playerName}</strong>!</p>
-              <button onClick={createGame} style={{ padding: '8px 15px', marginRight: '10px' }}>Create New Game</button>
-              <br /><br />
-              <input
-                type="text"
-                placeholder="Enter Game ID"
-                value={joinInput}
-                onChange={(e) => setJoinInput(e.target.value)}
-                style={{ marginRight: '10px', padding: '8px' }}
-              />
-              <button onClick={joinGame} style={{ padding: '8px 15px' }}>Join Game</button>
+              <p>Welcome, <strong>{playerName}</strong></p>
+              <button onClick={createGame}>Create Game</button>
+              <input placeholder="Enter Game ID" value={joinInput}
+                onChange={(e) => setJoinInput(e.target.value)} />
+              <button onClick={joinGame}>Join Game</button>
             </>
           )}
         </div>
       ) : (
-        // In-game Lobby UI
         <div>
           <h2>Game ID: {gameId}</h2>
           <h3>Players:</h3>
           <ul>
-            {gameData && Object.entries(gameData.players).map(([id, player]) => (
-              <li key={id}>
-                {player.name} {id === localPlayerId ? '(You)' : ''}
-              </li>
+            {gameData && Object.entries(gameData.players).map(([id, p]) => (
+              <li key={id}>{p.name} {id === localPlayerId ? '(You)' : ''}</li>
             ))}
           </ul>
 
+          {gameData?.status === 'waiting' && gameData.host === localPlayerId && (
+            <button onClick={startGame}>Start Game</button>
+          )}
+
+          {gameData?.status === 'in-progress' && (
+            <div>
+              <h3>Your Hand:</h3>
+              <p>{gameData.hands?.[localPlayerId]?.join(', ') || 'Not dealt'}</p>
+              <h3>Actions:</h3>
+              <ul>
+                {gameData.actions?.map((a, i) => (
+                  <li key={i}><strong>{a.name}</strong>: {a.action}</li>
+                ))}
+              </ul>
+              {gameData.currentTurn === localPlayerId && (
+                <div>
+                  <button onClick={() => performAction('Fold')}>Fold</button>
+                  <button onClick={() => performAction('Call')}>Call</button>
+                  <button onClick={() => performAction('Raise')}>Raise</button>
+                </div>
+              )}
+              {gameData.host === localPlayerId && (
+                <button onClick={endGame}>End Game</button>
+              )}
+            </div>
+          )}
+
+          {gameData?.status === 'ended' && <h3>Game Over</h3>}
+
           <h3>Chat:</h3>
-          <div style={{ border: '1px solid #ccc', padding: '10px', height: '150px', overflowY: 'scroll', marginBottom: '10px' }}>
-            {gameData && gameData.chatLog.map((chat, index) => (
-              <p key={index} style={{ margin: '0' }}>
-                <strong>{chat.senderName}:</strong> {chat.message}
-              </p>
+          <div style={{ border: '1px solid #ccc', height: '150px', overflowY: 'scroll' }}>
+            {gameData?.chatLog?.map((chat, i) => (
+              <p key={i}><strong>{chat.senderName}:</strong> {chat.message}</p>
             ))}
           </div>
-          <input
-            type="text"
-            placeholder="Type your message..."
-            value={messageInput}
+          <input placeholder="Message..." value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            style={{ width: 'calc(100% - 100px)', padding: '8px' }}
-          />
-          <button onClick={sendMessage} style={{ padding: '8px 15px', marginLeft: '10px' }}>Say Hi!</button>
+            onKeyPress={(e) => e.key === 'Enter' && sendMessage()} />
+          <button onClick={sendMessage}>Send</button>
         </div>
       )}
     </div>
