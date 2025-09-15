@@ -3,27 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion, query, collection, where, getDocs } from 'firebase/firestore';
 
-// Helper to generate a UUID
-const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
-
-// --- Poker helpers ---
-const suits = ['S', 'H', 'D', 'C'];
-const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-
-const buildDeck = () => {
-  const deck = [];
-  for (let s of suits) {
-    for (let r of ranks) {
-      deck.push(`${r}${s}`);
-    }
-  }
-  return deck.sort(() => Math.random() - 0.5);
-};
+import { generateUUID, buildDeck } from './utils/gameUtils';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBpZUfu31W_0z9CxI2tVGc6fIwDpAq5lD0",
