@@ -6,11 +6,8 @@ import { db } from './firebase';
 
 import { generateUUID, buildDeck } from './utils/gameUtils';
 
-import ChatBox from "./components/ChatBox";
-import GameControls from './components/GameControls';
 import GameScreen from './components/GameScreen';
 import Lobby from './components/Lobby';
-import PlayerList from "./components/PlayerList";
 
 function App() {
   const [playerName, setPlayerName] = useState('');
