@@ -2,6 +2,7 @@
 import React from 'react';
 import PlayerList from './PlayerList';
 import ChatBox from './ChatBox';
+import GameControls from './GameControls';
 
 export default function GameScreen({
   gameData,
@@ -30,34 +31,29 @@ export default function GameScreen({
         <button onClick={startGame}>Start Game</button>
       )}
 
-      {status === 'in-progress' && (
-        <div>
-          <h3>Your Hand:</h3>
-          <p>{hands[localPlayerId]?.join(', ') || 'Not dealt'}</p>
-
-          <h3>Center Cards:</h3>
-          <p>{faceUps.join(', ') || 'Not dealt'}</p>
-
-          <h3>Actions:</h3>
-          <ul>
-            {actions.map((a, i) => (
-              <li key={i}><strong>{a.name}</strong>: {a.action}</li>
-            ))}
-          </ul>
-
-          {yourTurn && (
-            <div>
-              <button onClick={() => performAction('Fold')}>Fold</button>
-              <button onClick={() => performAction('Call')}>Call</button>
-              <button onClick={() => performAction('Raise')}>Raise</button>
-            </div>
-          )}
-
-          {isHost && (
-            <button onClick={endGame}>End Game</button>
-          )}
-        </div>
-      )}
+  {status === 'in-progress' && (
+    <div>
+      <h3>Your Hand:</h3>
+      <p>{hands[localPlayerId]?.join(', ') || 'Not dealt'}</p>
+  
+      <h3>Center Cards:</h3>
+      <p>{faceUps.join(', ') || 'Not dealt'}</p>
+  
+      <h3>Actions:</h3>
+      <ul>
+        {actions.map((a, i) => (
+          <li key={i}><strong>{a.name}</strong>: {a.action}</li>
+        ))}
+      </ul>
+  
+      <GameControls
+        gameData={gameData}
+        localPlayerId={localPlayerId}
+        performAction={performAction}
+        endGame={endGame}
+      />
+    </div>
+  )}
 
       {status === 'ended' && <h3>Game Over</h3>}
 
