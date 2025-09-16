@@ -7,6 +7,7 @@ import { db } from './firebase';
 import { generateUUID, buildDeck } from './utils/gameUtils';
 
 import ChatBox from "./components/ChatBox";
+import GameControls from './components/GameControls';
 import PlayerList from "./components/PlayerList";
 
 function App() {
@@ -231,16 +232,13 @@ function App() {
                   <li key={i}><strong>{a.name}</strong>: {a.action}</li>
                 ))}
               </ul>
-              {gameData.currentTurn === localPlayerId && (
-                <div>
-                  <button onClick={() => performAction('Fold')}>Fold</button>
-                  <button onClick={() => performAction('Call')}>Call</button>
-                  <button onClick={() => performAction('Raise')}>Raise</button>
-                </div>
-              )}
-              {gameData.host === localPlayerId && (
-                <button onClick={endGame}>End Game</button>
-              )}
+
+              <GameControls
+                gameData={gameData}
+                localPlayerId={localPlayerId}
+                performAction={performAction}
+                endGame={endGame}
+              />
             </div>
           )}
 
