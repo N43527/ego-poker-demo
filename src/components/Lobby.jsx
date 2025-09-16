@@ -20,13 +20,13 @@ export default function Lobby({
         <>
           <input
             placeholder="Your Name"
-            value={playerName}
+            value={playerName || ''}
             onChange={(e) => setPlayerName(e.target.value)}
           />
           <input
             type="password"
             placeholder="Passkey"
-            value={passkey}
+            value={passkey || ''}
             onChange={(e) => setPasskey(e.target.value)}
           />
           <button onClick={registerProfile}>Register</button>
@@ -38,7 +38,7 @@ export default function Lobby({
           <button onClick={createGame}>Create Game</button>
           <input
             placeholder="Enter Game ID"
-            value={joinInput}
+            value={joinInput || ''}
             onChange={(e) => setJoinInput(e.target.value)}
           />
           <button onClick={joinGame}>Join Game</button>
