@@ -4,7 +4,8 @@ import { doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion, query, collecti
 
 import { db } from './firebase';
 
-import { generateUUID, buildDeck } from './utils/gameUtils';
+import { generateUUID } from './utils/gameUtils';
+import { createGame, joinGame, startGame, performAction, endGame } from './utils/gameService';
 
 import GameScreen from './components/GameScreen';
 import Lobby from './components/Lobby';
@@ -80,95 +81,6 @@ function App() {
     }
   };
 
-  // --- Game functions ---
-  const createGame = async () => {
-    if (!isRegistered) return;
-    const newGameId = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const gameRef = doc(db, 'games', newGameId);
-    await setDoc(gameRef, {
-      status: 'waiting',
-      host: localPlayerId,
-      players: { [localPlayerId]: { name: playerName, lastSeen: Date.now() } },
-      chatLog: [],
-      hands: {},
-      actions: [],
-      pot: 0,
-      currentTurn: null,
-      deck: [],
-      faceUps: []
-    });
-    setGameId(newGameId);
-  };
-
-  const joinGame = async () => {
-    if (!isRegistered || !joinInput) return;
-    const gameRef = doc(db, 'games', joinInput.toUpperCase());
-    const docSnap = await getDoc(gameRef);
-    if (docSnap.exists()) {
-      await updateDoc(gameRef, {
-        [`players.${localPlayerId}`]: { name: playerName, lastSeen: Date.now() }
-      });
-      setGameId(joinInput.toUpperCase());
-    } else {
-      alert('Game not found!');
-    }
-  };
-
-  const startGame = async () => {
-    if (!gameId || !gameData) return;
-    if (gameData.host !== localPlayerId) { alert('Only host can start'); return; }
-
-    const deck = buildDeck();
-    const hands = {};
-    // card #1
-    Object.keys(gameData.players).forEach(pid => {
-      hands[pid] = [deck.pop()];
-    });
-    // card #2
-    Object.keys(gameData.players).forEach(pid => {
-      hands[pid].push(deck.pop());
-    });
-
-    const burned = deck.pop();
-    const faceUps = [deck.pop(), deck.pop(), deck.pop(), deck.pop(), deck.pop()];
-
-    const firstTurn = Object.keys(gameData.players)[0];
-    await updateDoc(doc(db, 'games', gameId), {
-      status: 'in-progress',
-      deck,
-      hands,
-      faceUps,
-      pot: 0,
-      actions: [],
-      currentTurn: firstTurn
-    });
-  };
-
-  const performAction = async (action) => {
-    if (!gameId || !gameData) return;
-    if (gameData.currentTurn !== localPlayerId) return;
-
-    const players = Object.keys(gameData.players);
-    const currentIndex = players.indexOf(localPlayerId);
-    const nextTurn = players[(currentIndex + 1) % players.length];
-
-    await updateDoc(doc(db, 'games', gameId), {
-      actions: arrayUnion({
-        playerId: localPlayerId,
-        name: playerName,
-        action,
-        timestamp: Date.now()
-      }),
-      currentTurn: nextTurn
-    });
-  };
-
-  const endGame = async () => {
-    if (!gameId || !gameData) return;
-    if (gameData.host !== localPlayerId) return;
-    await updateDoc(doc(db, 'games', gameId), { status: 'ended' });
-  };
-
   const sendMessage = async () => {
     if (!gameId || !messageInput) return;
     const gameRef = doc(db, 'games', gameId);
@@ -197,18 +109,18 @@ function App() {
           setPasskey={setPasskey}
           registerProfile={registerProfile}
           reconnectWithPasskey={reconnectWithPasskey}
-          createGame={createGame}
+          createGame={() => createGame(localPlayerId, playerName, setGameId)}
           joinInput={joinInput}
           setJoinInput={setJoinInput}
-          joinGame={joinGame}
+          joinGame={() => joinGame(localPlayerId, playerName, joinInput, setGameId)}
         />
       ) : (
         <GameScreen
           gameData={gameData}
           localPlayerId={localPlayerId}
-          startGame={startGame}
-          performAction={performAction}
-          endGame={endGame}
+          startGame={() => startGame(gameId, gameData)}
+          performAction={(action) => performAction(gameId, gameData, localPlayerId, playerName, action)}
+          endGame={() => endGame(gameId)}
           messageInput={messageInput}
           setMessageInput={setMessageInput}
           sendMessage={sendMessage}
