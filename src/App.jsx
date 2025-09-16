@@ -8,6 +8,7 @@ import { generateUUID, buildDeck } from './utils/gameUtils';
 
 import ChatBox from "./components/ChatBox";
 import GameControls from './components/GameControls';
+import Lobby from './components/Lobby';
 import PlayerList from "./components/PlayerList";
 
 function App() {
@@ -190,27 +191,19 @@ function App() {
       <h1>♠ Ego Poker Demo Lobby</h1>
 
       {!gameId ? (
-        <div>
-          {!isRegistered && (
-            <>
-              <input placeholder="Your Name" value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)} />
-              <input type="password" placeholder="Passkey" value={passkey}
-                onChange={(e) => setPasskey(e.target.value)} />
-              <button onClick={registerProfile}>Register</button>
-              <button onClick={reconnectWithPasskey}>Reconnect</button>
-            </>
-          )}
-          {isRegistered && (
-            <>
-              <p>Welcome, <strong>{playerName}</strong></p>
-              <button onClick={createGame}>Create Game</button>
-              <input placeholder="Enter Game ID" value={joinInput}
-                onChange={(e) => setJoinInput(e.target.value)} />
-              <button onClick={joinGame}>Join Game</button>
-            </>
-          )}
-        </div>
+        <Lobby
+          isRegistered={isRegistered}
+          playerName={playerName}
+          setPlayerName={setPlayerName}
+          passkey={passkey}
+          setPasskey={setPasskey}
+          registerProfile={registerProfile}
+          reconnectWithPasskey={reconnectWithPasskey}
+          createGame={createGame}
+          joinInput={joinInput}
+          setJoinInput={setJoinInput}
+          joinGame={joinGame}
+        />
       ) : (
         <div>
           <h2>Game ID: {gameId}</h2>
