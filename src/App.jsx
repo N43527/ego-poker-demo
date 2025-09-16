@@ -8,6 +8,7 @@ import { generateUUID, buildDeck } from './utils/gameUtils';
 
 import ChatBox from "./components/ChatBox";
 import GameControls from './components/GameControls';
+import GameScreen from './components/GameScreen';
 import Lobby from './components/Lobby';
 import PlayerList from "./components/PlayerList";
 
@@ -47,7 +48,7 @@ function App() {
     const gameRef = doc(db, 'games', gameId);
     const unsubscribe = onSnapshot(gameRef, (docSnap) => {
       if (docSnap.exists()) {
-        setGameData(docSnap.data());
+        setGameData({ ...docSnap.data(), id: docSnap.id });
       } else {
         setGameData(null);
         setGameId('');
@@ -205,45 +206,16 @@ function App() {
           joinGame={joinGame}
         />
       ) : (
-        <div>
-          <h2>Game ID: {gameId}</h2>
-          {gameData && <PlayerList players={gameData.players} localPlayerId={localPlayerId} />}
-
-          {gameData?.status === 'waiting' && gameData.host === localPlayerId && (
-            <button onClick={startGame}>Start Game</button>
-          )}
-
-          {gameData?.status === 'in-progress' && (
-            <div>
-              <h3>Your Hand:</h3>
-              <p>{gameData.hands?.[localPlayerId]?.join(', ') || 'Not dealt'}</p>
-              <h3>Center Cards:</h3>
-              <p>{gameData.faceUps?.join(', ') || 'Not dealt'}</p>
-              <h3>Actions:</h3>
-              <ul>
-                {gameData.actions?.map((a, i) => (
-                  <li key={i}><strong>{a.name}</strong>: {a.action}</li>
-                ))}
-              </ul>
-
-              <GameControls
-                gameData={gameData}
-                localPlayerId={localPlayerId}
-                performAction={performAction}
-                endGame={endGame}
-              />
-            </div>
-          )}
-
-          {gameData?.status === 'ended' && <h3>Game Over</h3>}
-
-          <ChatBox
-            chatLog={gameData?.chatLog}
-            messageInput={messageInput}
-            setMessageInput={setMessageInput}
-            sendMessage={sendMessage}
-          />
-        </div>
+        <GameScreen
+          gameData={gameData}
+          localPlayerId={localPlayerId}
+          startGame={startGame}
+          performAction={performAction}
+          endGame={endGame}
+          messageInput={messageInput}
+          setMessageInput={setMessageInput}
+          sendMessage={sendMessage}
+        />
       )}
     </div>
   );
