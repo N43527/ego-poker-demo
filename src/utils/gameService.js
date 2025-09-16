@@ -84,3 +84,18 @@ export async function endGame(gameId) {
   if (!gameId) return;
   await updateDoc(doc(db, 'games', gameId), { status: 'ended' });
 }
+
+// Send a chat message
+export async function sendMessage(gameId, localPlayerId, playerName, message, setMessageInput) {
+  if (!gameId || !message) return;
+  const gameRef = doc(db, 'games', gameId);
+  await updateDoc(gameRef, {
+    chatLog: arrayUnion({
+      senderId: localPlayerId,
+      senderName: playerName,
+      message,
+      timestamp: Date.now()
+    })
+  });
+  if (setMessageInput) setMessageInput('');
+}

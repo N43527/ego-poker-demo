@@ -5,7 +5,7 @@ import { doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion, query, collecti
 import { db } from './firebase';
 
 import { generateUUID } from './utils/gameUtils';
-import { createGame, joinGame, startGame, performAction, endGame } from './utils/gameService';
+import { createGame, joinGame, startGame, performAction, endGame, sendMessage } from './utils/gameService';
 
 import GameScreen from './components/GameScreen';
 import Lobby from './components/Lobby';
@@ -81,20 +81,6 @@ function App() {
     }
   };
 
-  const sendMessage = async () => {
-    if (!gameId || !messageInput) return;
-    const gameRef = doc(db, 'games', gameId);
-    await updateDoc(gameRef, {
-      chatLog: arrayUnion({
-        senderId: localPlayerId,
-        senderName: playerName,
-        message: messageInput,
-        timestamp: Date.now()
-      })
-    });
-    setMessageInput('');
-  };
-
   // --- UI ---
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '20px' }}>
@@ -123,7 +109,7 @@ function App() {
           endGame={() => endGame(gameId)}
           messageInput={messageInput}
           setMessageInput={setMessageInput}
-          sendMessage={sendMessage}
+          sendMessage={() => sendMessage(gameId, localPlayerId, playerName, messageInput, setMessageInput)}
         />
       )}
     </div>
