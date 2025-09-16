@@ -6,6 +6,8 @@ import { db } from './firebase';
 
 import { generateUUID, buildDeck } from './utils/gameUtils';
 
+import PlayerList from "./components/PlayerList";
+
 function App() {
   const [playerName, setPlayerName] = useState('');
   const [passkey, setPasskey] = useState('');
@@ -210,12 +212,7 @@ function App() {
       ) : (
         <div>
           <h2>Game ID: {gameId}</h2>
-          <h3>Players:</h3>
-          <ul>
-            {gameData && Object.entries(gameData.players).map(([id, p]) => (
-              <li key={id}>{p.name} {id === localPlayerId ? '(You)' : ''}</li>
-            ))}
-          </ul>
+          {gameData && <PlayerList players={gameData.players} localPlayerId={localPlayerId} />}
 
           {gameData?.status === 'waiting' && gameData.host === localPlayerId && (
             <button onClick={startGame}>Start Game</button>
