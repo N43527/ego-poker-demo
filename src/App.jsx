@@ -6,6 +6,7 @@ import { db } from './firebase';
 
 import { generateUUID, buildDeck } from './utils/gameUtils';
 
+import ChatBox from "./components/ChatBox";
 import PlayerList from "./components/PlayerList";
 
 function App() {
@@ -245,16 +246,12 @@ function App() {
 
           {gameData?.status === 'ended' && <h3>Game Over</h3>}
 
-          <h3>Chat:</h3>
-          <div style={{ border: '1px solid #ccc', height: '150px', overflowY: 'scroll' }}>
-            {gameData?.chatLog?.map((chat, i) => (
-              <p key={i}><strong>{chat.senderName}:</strong> {chat.message}</p>
-            ))}
-          </div>
-          <input placeholder="Message..." value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()} />
-          <button onClick={sendMessage}>Send</button>
+          <ChatBox
+            chatLog={gameData?.chatLog}
+            messageInput={messageInput}
+            setMessageInput={setMessageInput}
+            sendMessage={sendMessage}
+          />
         </div>
       )}
     </div>
