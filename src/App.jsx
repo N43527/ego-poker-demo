@@ -1,11 +1,11 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { doc, setDoc, getDoc, onSnapshot, query, collection, where, getDocs } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 import { db } from './firebase';
-
 import { generateUUID } from './utils/gameUtils';
 import { createGame, joinGame, startGame, performAction, endGame, sendMessage } from './utils/gameService';
+import { registerProfile as registerProfileService, reconnectWithPasskey as reconnectService, checkProfile } from './utils/profileService';
 
 import GameScreen from './components/GameScreen';
 import Lobby from './components/Lobby';
@@ -29,18 +29,17 @@ function App() {
     }
     setLocalPlayerId(storedPlayerId);
 
-    const checkProfile = async () => {
-      const profileRef = doc(db, 'profiles', storedPlayerId);
-      const profileSnap = await getDoc(profileRef);
-      if (profileSnap.exists()) {
+    const loadProfile = async () => {
+      const profileData = await checkProfile(storedPlayerId);
+      if (profileData) {
         setIsRegistered(true);
-        setPlayerName(profileSnap.data().name);
+        setPlayerName(profileData.name);
       }
     };
-    checkProfile();
+    loadProfile();
   }, []);
 
-  // --- Listen for real-time updates ---
+  // --- Listen for real-time game updates ---
   useEffect(() => {
     if (!gameId) return;
     const gameRef = doc(db, 'games', gameId);
@@ -55,24 +54,17 @@ function App() {
     return () => unsubscribe();
   }, [gameId]);
 
-  // --- Registration/Login ---
+  // --- Registration ---
   const registerProfile = async () => {
-    if (!playerName || !passkey) { alert('Enter both name and passkey!'); return; }
-    const profileRef = doc(db, 'profiles', localPlayerId);
-    const profileSnap = await getDoc(profileRef);
-    if (profileSnap.exists()) { alert('This device already has a profile.'); return; }
-    await setDoc(profileRef, { name: playerName, passkey });
-    setIsRegistered(true);
+    const result = await registerProfileService(localPlayerId, playerName, passkey);
+    if (result.success) setIsRegistered(true);
+    else alert(result.message);
   };
 
+  // --- Reconnect ---
   const reconnectWithPasskey = async () => {
-    if (!playerName || !passkey) return;
-    const profilesRef = collection(db, 'profiles');
-    const q = query(profilesRef, where('name', '==', playerName), where('passkey', '==', passkey));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      const profileDoc = querySnapshot.docs[0];
-      const retrievedPlayerId = profileDoc.id;
+    const retrievedPlayerId = await reconnectService(playerName, passkey);
+    if (retrievedPlayerId) {
       localStorage.setItem('localPlayerId', retrievedPlayerId);
       setLocalPlayerId(retrievedPlayerId);
       setIsRegistered(true);
