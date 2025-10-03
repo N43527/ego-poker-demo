@@ -38,6 +38,9 @@ export default function GameScreen({
   
       <h3>Center Cards:</h3>
       <p>{faceUps.join(', ') || 'Not dealt'}</p>
+
+      <h3>Current Confidence:</h3>
+      <p>{gameData.confidence || "None yet"}</p>
   
       <h3>Actions:</h3>
       <ul>

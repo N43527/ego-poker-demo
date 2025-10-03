@@ -15,7 +15,7 @@ export async function createGame(localPlayerId, playerName, setGameId) {
     chatLog: [],
     hands: {},
     actions: [],
-    pot: 0,
+    confidence: 0,
     currentTurn: null,
     deck: [],
     faceUps: []
@@ -55,7 +55,7 @@ export async function startGame(gameId, gameData) {
     deck,
     hands,
     faceUps,
-    pot: 0,
+    confidence: 0,
     actions: [],
     currentTurn: firstTurn
   });
@@ -68,7 +68,10 @@ export async function performAction(gameId, gameData, localPlayerId, playerName,
   const currentIndex = players.indexOf(localPlayerId);
   const nextTurn = players[(currentIndex + 1) % players.length];
 
-  await updateDoc(doc(db, 'games', gameId), {
+  const gameRef = doc(db, "games", gameId);
+
+  // Build the update object
+  const updatePayload = {
     actions: arrayUnion({
       playerId: localPlayerId,
       name: playerName,
@@ -76,7 +79,18 @@ export async function performAction(gameId, gameData, localPlayerId, playerName,
       timestamp: Date.now()
     }),
     currentTurn: nextTurn
-  });
+  };
+
+  // If it's a Raise, increment confidence
+  if (action === "Raise") {
+    const snap = await getDoc(gameRef);
+    if (snap.exists()) {
+      const currentConfidence = snap.data().confidence || 0;
+      updatePayload.confidence = currentConfidence + 1;
+    }
+  }
+
+  await updateDoc(gameRef, updatePayload);
 }
 
 // End the game
