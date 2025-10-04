@@ -15,6 +15,7 @@ export async function createGame(localPlayerId, playerName, setGameId) {
       [localPlayerId]: { 
         name: playerName, 
         lastSeen: Date.now(),
+        folded: false,
         totalConfidence: 0,
         roundConfidence: 0 
       } 
@@ -78,11 +79,23 @@ export async function startGame(gameId, gameData) {
 // Perform an action
 export async function performAction(gameId, gameData, localPlayerId, playerName, action) {
   if (!gameId || !gameData) return;
+
+  const gameRef = doc(db, "games", gameId);
+
+  const snap = await getDoc(gameRef);
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+
+  // 🛑 Guard: if round has ended, no actions allowed
+  if (!data.roundActive) {
+    console.warn("Round already ended — no further actions allowed.");
+    return;
+  }
+
   const players = Object.keys(gameData.players);
   const currentIndex = players.indexOf(localPlayerId);
   const nextTurn = players[(currentIndex + 1) % players.length];
-
-  const gameRef = doc(db, "games", gameId);
 
   // Define the generic action payload
   const baseAction = {
@@ -104,7 +117,15 @@ export async function performAction(gameId, gameData, localPlayerId, playerName,
     updatePayload = { ...updatePayload, ...raiseAction };
   }
 
+  if (action === "Fold") {
+    const foldAction = buildFoldAction(localPlayerId);
+    updatePayload = { ...updatePayload, ...foldAction };
+  }
+  
   await updateDoc(gameRef, updatePayload);
+
+  // After update, check if round should end
+  await checkRoundStillActive(gameRef);
 }
 
 // Helper function for Raise
@@ -122,6 +143,40 @@ async function buildRaiseAction(gameRef, localPlayerId, baseAction) {
   };
 }
 
+function buildFoldAction(localPlayerId) {
+  return {
+    [`players.${localPlayerId}.folded`]: true,
+    [`players.${localPlayerId}.roundConfidence`]: 0,
+  };
+}
+
+async function checkRoundStillActive(gameRef) {
+  const snap = await getDoc(gameRef);
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+  const players = data.players || {};
+
+  // Get all active players (not folded)
+  const activePlayers = Object.entries(players)
+    .filter(([_, p]) => !p.folded)
+    .map(([id]) => id);
+
+  // If only one player remains → they win this round
+  if (activePlayers.length === 1) {
+    const winnerId = activePlayers[0];
+    const confidence = data.confidence || 0;
+
+    const updates = {
+      [`players.${winnerId}.totalConfidence`]:
+        (players[winnerId].totalConfidence || 0) + confidence,
+      roundActive: false,
+      winner: winnerId,
+    };
+
+    await updateDoc(gameRef, updates);
+  }
+}
 
 // End the game
 export async function endGame(gameId) {
