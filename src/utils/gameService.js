@@ -11,11 +11,20 @@ export async function createGame(localPlayerId, playerName, setGameId) {
   await setDoc(gameRef, {
     status: 'waiting',
     host: localPlayerId,
-    players: { [localPlayerId]: { name: playerName, lastSeen: Date.now() } },
+    players: { 
+      [localPlayerId]: { 
+        name: playerName, 
+        lastSeen: Date.now(),
+        totalConfidence: 0,
+        roundConfidence: 0 
+      } 
+    },
     chatLog: [],
     hands: {},
     actions: [],
     confidence: 0,
+    roundNumber: 1,
+    roundActive: true,
     currentTurn: null,
     deck: [],
     faceUps: []
@@ -31,7 +40,12 @@ export async function joinGame(localPlayerId, playerName, joinInput, setGameId) 
   const docSnap = await getDoc(gameRef);
   if (docSnap.exists()) {
     await updateDoc(gameRef, {
-      [`players.${localPlayerId}`]: { name: playerName, lastSeen: Date.now() }
+      [`players.${localPlayerId}`]: { 
+        name: playerName, 
+        lastSeen: Date.now(),
+        totalConfidence: 0,
+        roundConfidence: 0 
+      }
     });
     setGameId(joinInput.toUpperCase());
   } else {
@@ -87,8 +101,13 @@ export async function performAction(gameId, gameData, localPlayerId, playerName,
     if (snap.exists()) {
       const currentConfidence = snap.data().confidence || 0;
       updatePayload.confidence = currentConfidence + 1;
+  
+      // Increment this player's roundConfidence
+      const playerRef = `players.${localPlayerId}.roundConfidence`;
+      updatePayload[playerRef] = updatePayload.confidence;
     }
   }
+  
 
   await updateDoc(gameRef, updatePayload);
 }
