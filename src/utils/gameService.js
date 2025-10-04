@@ -84,33 +84,44 @@ export async function performAction(gameId, gameData, localPlayerId, playerName,
 
   const gameRef = doc(db, "games", gameId);
 
-  // Build the update object
-  const updatePayload = {
-    actions: arrayUnion({
-      playerId: localPlayerId,
-      name: playerName,
-      action,
-      timestamp: Date.now()
-    }),
-    currentTurn: nextTurn
+  // Define the generic action payload
+  const baseAction = {
+    playerId: localPlayerId,
+    name: playerName,
+    action,
+    timestamp: Date.now(),
   };
 
-  // If it's a Raise, increment confidence
+  // Default update payload (for Call, Fold, etc.)
+  let updatePayload = {
+    actions: arrayUnion(baseAction),
+    currentTurn: nextTurn,
+  };
+
+  // If the player RAISES → modify payload accordingly
   if (action === "Raise") {
-    const snap = await getDoc(gameRef);
-    if (snap.exists()) {
-      const currentConfidence = snap.data().confidence || 0;
-      updatePayload.confidence = currentConfidence + 1;
-  
-      // Increment this player's roundConfidence
-      const playerRef = `players.${localPlayerId}.roundConfidence`;
-      updatePayload[playerRef] = updatePayload.confidence;
-    }
+    const raiseAction = await buildRaiseAction(gameRef, localPlayerId, baseAction);
+    updatePayload = { ...updatePayload, ...raiseAction };
   }
-  
 
   await updateDoc(gameRef, updatePayload);
 }
+
+// Helper function for Raise
+async function buildRaiseAction(gameRef, localPlayerId, baseAction) {
+  const snap = await getDoc(gameRef);
+  if (!snap.exists()) return {};
+
+  const data = snap.data();
+  const currentConfidence = data.confidence || 0;
+  const newConfidence = currentConfidence + 1;
+
+  return {
+    confidence: newConfidence, // global confidence increment
+    [`players.${localPlayerId}.roundConfidence`]: newConfidence,
+  };
+}
+
 
 // End the game
 export async function endGame(gameId) {
