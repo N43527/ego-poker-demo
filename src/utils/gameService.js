@@ -93,10 +93,6 @@ export async function performAction(gameId, gameData, localPlayerId, playerName,
     return;
   }
 
-  const players = Object.keys(gameData.players);
-  const currentIndex = players.indexOf(localPlayerId);
-  const nextTurn = players[(currentIndex + 1) % players.length];
-
   // Define the generic action payload
   const baseAction = {
     playerId: localPlayerId,
@@ -108,7 +104,6 @@ export async function performAction(gameId, gameData, localPlayerId, playerName,
   // Default update payload (for Call, Fold, etc.)
   let updatePayload = {
     actions: arrayUnion(baseAction),
-    currentTurn: nextTurn,
   };
 
   // If the player RAISES → modify payload accordingly
@@ -117,11 +112,23 @@ export async function performAction(gameId, gameData, localPlayerId, playerName,
     updatePayload = { ...updatePayload, ...raiseAction };
   }
 
+  // If the player FOLDS → mark them as folded
   if (action === "Fold") {
     const foldAction = buildFoldAction(localPlayerId);
     updatePayload = { ...updatePayload, ...foldAction };
   }
-  
+
+  // After applying the action, figure out who’s next
+  const nextTurn = getNextActivePlayer(data, localPlayerId);
+
+  // If no next active player → end round
+  if (!nextTurn) {
+    updatePayload.roundActive = false;
+    updatePayload.currentTurn = null;
+  } else {
+    updatePayload.currentTurn = nextTurn;
+  }
+
   await updateDoc(gameRef, updatePayload);
 
   // After update, check if round should end
@@ -149,6 +156,23 @@ function buildFoldAction(localPlayerId) {
     [`players.${localPlayerId}.roundConfidence`]: 0,
   };
 }
+
+function getNextActivePlayer(players, currentPlayerId) {
+  const playerIds = Object.keys(players);
+  const total = playerIds.length;
+  const currentIndex = playerIds.indexOf(currentPlayerId);
+
+  for (let i = 1; i <= total; i++) {
+    const nextId = playerIds[(currentIndex + i) % total];
+    if (!players[nextId].folded) {
+      return nextId;
+    }
+  }
+
+  // No active players left (should trigger round end soon)
+  return null;
+}
+
 
 async function checkRoundStillActive(gameRef) {
   const snap = await getDoc(gameRef);
