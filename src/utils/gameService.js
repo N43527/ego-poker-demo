@@ -55,26 +55,61 @@ export async function joinGame(localPlayerId, playerName, joinInput, setGameId) 
   }
 }
 
-// Start the game
-export async function startGame(gameId, gameData) {
+// Mark player as ready for next round
+export async function setPlayerReady(gameId, localPlayerId) {
+  const gameRef = doc(db, 'games', gameId);
+  await updateDoc(gameRef, {
+    [`players.${localPlayerId}.ready`]: true
+  });
+}
+
+// Start the round (Initial or Next)
+export async function startRound(gameId, gameData) {
   if (!gameId || !gameData) return;
+
   const deck = buildDeck();
   const hands = {};
+  const updates = {};
+
+  // Common setup
+  const faceUps = [deck.pop(), deck.pop(), deck.pop(), deck.pop(), deck.pop()];
+
+  // Reset players
   Object.keys(gameData.players).forEach(pid => {
     hands[pid] = [deck.pop(), deck.pop()];
+    updates[`players.${pid}.folded`] = false;
+    updates[`players.${pid}.roundConfidence`] = 1;
+    updates[`players.${pid}.ready`] = false; // Reset ready status
   });
-  const faceUps = [deck.pop(), deck.pop(), deck.pop(), deck.pop(), deck.pop()];
-  const firstTurn = Object.keys(gameData.players)[0];
 
-  await updateDoc(doc(db, 'games', gameId), {
-    status: 'in-progress',
-    deck,
-    hands,
-    faceUps,
-    confidence: 1,
-    actions: [],
-    currentTurn: firstTurn
-  });
+  // Determine Turn
+  let nextTurn;
+  let roundNumber = gameData.roundNumber || 1;
+
+  if (gameData.status === 'waiting') {
+    // First round
+    nextTurn = Object.keys(gameData.players)[0];
+  } else {
+    // Next round
+    roundNumber += 1;
+    const playerIds = Object.keys(gameData.players);
+    const nextStartIdx = (roundNumber - 1) % playerIds.length;
+    nextTurn = playerIds[nextStartIdx];
+  }
+
+  updates.status = 'in-progress';
+  updates.deck = deck;
+  updates.hands = hands;
+  updates.faceUps = faceUps;
+  updates.confidence = 1;
+  updates.actions = [];
+  updates.currentTurn = nextTurn;
+  updates.roundActive = true;
+  updates.winner = null;
+  updates.winReason = null;
+  updates.roundNumber = roundNumber;
+
+  await updateDoc(doc(db, 'games', gameId), updates);
 }
 
 // Perform an action

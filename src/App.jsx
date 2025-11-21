@@ -4,7 +4,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 
 import { db } from './firebase';
 import { generateUUID } from './utils/gameUtils';
-import { createGame, joinGame, startGame, performAction, endGame, sendMessage } from './utils/gameService';
+import { createGame, joinGame, startRound, performAction, endGame, sendMessage, setPlayerReady } from './utils/gameService';
 import { registerProfile as registerProfileService, reconnectWithPasskey as reconnectService, checkProfile } from './utils/profileService';
 
 import GameScreen from './components/GameScreen';
@@ -96,9 +96,11 @@ function App() {
         <GameScreen
           gameData={gameData}
           localPlayerId={localPlayerId}
-          startGame={() => startGame(gameId, gameData)}
+          startGame={() => startRound(gameId, gameData)}
           performAction={(action, value) => performAction(gameId, gameData, localPlayerId, playerName, action, value)}
           endGame={() => endGame(gameId)}
+          setPlayerReady={() => setPlayerReady(gameId, localPlayerId)}
+          startNextRound={() => startRound(gameId, gameData)}
           messageInput={messageInput}
           setMessageInput={setMessageInput}
           sendMessage={() => sendMessage(gameId, localPlayerId, playerName, messageInput, setMessageInput)}

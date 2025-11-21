@@ -10,7 +10,7 @@ export default function GameControls({ gameData, localPlayerId, performAction, e
   const [raiseAmount, setRaiseAmount] = useState(globalConfidence + 1);
 
   useEffect(() => {
-    if (raiseAmount <= globalConfidence) setRaiseAmount(globalConfidence + 1);
+    setRaiseAmount(globalConfidence + 1);
   }, [globalConfidence]);
 
   return (

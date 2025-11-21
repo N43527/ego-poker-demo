@@ -12,7 +12,9 @@ export default function GameScreen({
   endGame,
   messageInput,
   setMessageInput,
-  sendMessage
+  sendMessage,
+  setPlayerReady,
+  startNextRound
 }) {
   if (!gameData) return null;
 
@@ -20,6 +22,16 @@ export default function GameScreen({
 
   const isHost = host === localPlayerId;
   const yourTurn = currentTurn === localPlayerId;
+
+  // Auto-start next round if everyone is ready (Host only)
+  React.useEffect(() => {
+    if (isHost && !gameData.roundActive && gameData.winner) {
+      const allReady = Object.values(players).every(p => p.ready);
+      if (allReady) {
+        startNextRound();
+      }
+    }
+  }, [gameData, isHost, startNextRound]);
 
   return (
     <div>
@@ -66,6 +78,25 @@ export default function GameScreen({
       )}
 
       {status === 'ended' && <h3>Game Over</h3>}
+
+      {!gameData.roundActive && gameData.winner && (
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          {!players[localPlayerId]?.ready ? (
+            <button
+              onClick={setPlayerReady}
+              style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
+            >
+              Ready for Next Round
+            </button>
+          ) : (
+            <p>Waiting for other players...</p>
+          )}
+
+          <p style={{ fontSize: '12px', color: '#666' }}>
+            {Object.values(players).filter(p => p.ready).length} / {Object.keys(players).length} players ready
+          </p>
+        </div>
+      )}
 
       <ChatBox
         chatLog={chatLog}
