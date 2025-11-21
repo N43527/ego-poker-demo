@@ -93,7 +93,7 @@ export async function startRound(gameId, gameData) {
     // Next round
     roundNumber += 1;
     const playerIds = Object.keys(gameData.players).sort(); // Sort for consistent order
-    const nextStartIdx = roundNumber % playerIds.length;
+    const nextStartIdx = (roundNumber - 1) % playerIds.length;
     nextTurn = playerIds[nextStartIdx];
   }
 
