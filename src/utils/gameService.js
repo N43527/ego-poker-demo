@@ -88,12 +88,12 @@ export async function startRound(gameId, gameData) {
 
   if (gameData.status === 'waiting') {
     // First round
-    nextTurn = Object.keys(gameData.players)[0];
+    nextTurn = Object.keys(gameData.players).sort()[0];
   } else {
     // Next round
     roundNumber += 1;
-    const playerIds = Object.keys(gameData.players);
-    const nextStartIdx = (roundNumber - 1) % playerIds.length;
+    const playerIds = Object.keys(gameData.players).sort(); // Sort for consistent order
+    const nextStartIdx = roundNumber % playerIds.length;
     nextTurn = playerIds[nextStartIdx];
   }
 

@@ -77,7 +77,32 @@ export default function GameScreen({
         </div>
       )}
 
-      {status === 'ended' && <h3>Game Over</h3>}
+      {status === 'ended' && (
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <h1 style={{ fontSize: '48px' }}>🏆 Game Over 🏆</h1>
+          {gameData.gameWinner && (
+            <h2>Winner: {players[gameData.gameWinner]?.name || gameData.gameWinner}</h2>
+          )}
+
+          <h3>Final Scores:</h3>
+          <ul style={{ listStyle: 'none', padding: 0 }}>
+            {Object.entries(players)
+              .sort(([, a], [, b]) => b.totalConfidence - a.totalConfidence)
+              .map(([id, p]) => (
+                <li key={id} style={{ fontSize: '18px', margin: '5px 0' }}>
+                  {p.name}: {p.totalConfidence}
+                </li>
+              ))}
+          </ul>
+
+          <button
+            onClick={() => window.location.reload()}
+            style={{ marginTop: '20px', padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}
+          >
+            Back to Lobby
+          </button>
+        </div>
+      )}
 
       {!gameData.roundActive && gameData.winner && (
         <div style={{ marginTop: '20px', textAlign: 'center' }}>
