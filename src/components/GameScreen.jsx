@@ -31,32 +31,39 @@ export default function GameScreen({
         <button onClick={startGame}>Start Game</button>
       )}
 
-  {status === 'in-progress' && (
-    <div>
-      <h3>Your Hand:</h3>
-      <p>{hands[localPlayerId]?.join(', ') || 'Not dealt'}</p>
-  
-      <h3>Center Cards:</h3>
-      <p>{faceUps.join(', ') || 'Not dealt'}</p>
+      {status === 'in-progress' && (
+        <div>
+          <h3>Your Hand:</h3>
+          <p>{hands[localPlayerId]?.join(', ') || 'Not dealt'}</p>
 
-      <h3>Current Confidence:</h3>
-      <p>{gameData.confidence || "None yet"}</p>
-  
-      <h3>Actions:</h3>
-      <ul>
-        {actions.map((a, i) => (
-          <li key={i}><strong>{a.name}</strong>: {a.action}</li>
-        ))}
-      </ul>
-  
-      <GameControls
-        gameData={gameData}
-        localPlayerId={localPlayerId}
-        performAction={performAction}
-        endGame={endGame}
-      />
-    </div>
-  )}
+          <h3>Center Cards:</h3>
+          <p>{faceUps.join(', ') || 'Not dealt'}</p>
+
+          {!gameData.roundActive && gameData.winner && (
+            <div style={{ padding: '10px', backgroundColor: '#e6fffa', border: '1px solid #b2f5ea', borderRadius: '5px', margin: '10px 0' }}>
+              <h3>🎉 Round Winner: {gameData.winner.split(', ').map(id => players[id]?.name || id).join(', ')}</h3>
+              {gameData.winReason && <p>Reason: {gameData.winReason}</p>}
+            </div>
+          )}
+
+          <h3>Current Confidence:</h3>
+          <p>{gameData.confidence || "None yet"}</p>
+
+          <h3>Actions:</h3>
+          <ul>
+            {actions.map((a, i) => (
+              <li key={i}><strong>{a.name}</strong>: {a.action}</li>
+            ))}
+          </ul>
+
+          <GameControls
+            gameData={gameData}
+            localPlayerId={localPlayerId}
+            performAction={performAction}
+            endGame={endGame}
+          />
+        </div>
+      )}
 
       {status === 'ended' && <h3>Game Over</h3>}
 

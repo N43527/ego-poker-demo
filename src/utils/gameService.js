@@ -2,28 +2,29 @@
 import { doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../firebase';
 import { buildDeck } from './gameUtils';
+import { Hand } from 'pokersolver';
 
 // Create a new game
 export async function createGame(localPlayerId, playerName, setGameId) {
-  const newGameId = Math.random().toString(36).substring(2,6).toUpperCase();
+  const newGameId = Math.random().toString(36).substring(2, 6).toUpperCase();
   const gameRef = doc(db, 'games', newGameId);
 
   await setDoc(gameRef, {
     status: 'waiting',
     host: localPlayerId,
-    players: { 
-      [localPlayerId]: { 
-        name: playerName, 
+    players: {
+      [localPlayerId]: {
+        name: playerName,
         lastSeen: Date.now(),
         folded: false,
         totalConfidence: 0,
-        roundConfidence: 0 
-      } 
+        roundConfidence: 1
+      }
     },
     chatLog: [],
     hands: {},
     actions: [],
-    confidence: 0,
+    confidence: 1,
     roundNumber: 1,
     roundActive: true,
     currentTurn: null,
@@ -41,11 +42,11 @@ export async function joinGame(localPlayerId, playerName, joinInput, setGameId) 
   const docSnap = await getDoc(gameRef);
   if (docSnap.exists()) {
     await updateDoc(gameRef, {
-      [`players.${localPlayerId}`]: { 
-        name: playerName, 
+      [`players.${localPlayerId}`]: {
+        name: playerName,
         lastSeen: Date.now(),
         totalConfidence: 0,
-        roundConfidence: 0 
+        roundConfidence: 0
       }
     });
     setGameId(joinInput.toUpperCase());
@@ -70,14 +71,14 @@ export async function startGame(gameId, gameData) {
     deck,
     hands,
     faceUps,
-    confidence: 0,
+    confidence: 1,
     actions: [],
     currentTurn: firstTurn
   });
 }
 
 // Perform an action
-export async function performAction(gameId, gameData, localPlayerId, playerName, action) {
+export async function performAction(gameId, gameData, localPlayerId, playerName, action, value = 0) {
   if (!gameId || !gameData) return;
 
   const gameRef = doc(db, "games", gameId);
@@ -108,8 +109,20 @@ export async function performAction(gameId, gameData, localPlayerId, playerName,
 
   // If the player RAISES → modify payload accordingly
   if (action === "Raise") {
-    const raiseAction = await buildRaiseAction(gameRef, localPlayerId, baseAction);
+    // Validate raise
+    const currentConfidence = data.confidence || 0;
+    if (value <= currentConfidence || value > 10) {
+      console.error("Invalid raise amount");
+      return;
+    }
+    const raiseAction = await buildRaiseAction(gameRef, localPlayerId, value);
     updatePayload = { ...updatePayload, ...raiseAction };
+  }
+
+  // If the player CALLS → match the global confidence
+  if (action === "Call") {
+    const currentConfidence = data.confidence || 0;
+    updatePayload[`players.${localPlayerId}.roundConfidence`] = currentConfidence;
   }
 
   // If the player FOLDS → mark them as folded
@@ -119,7 +132,7 @@ export async function performAction(gameId, gameData, localPlayerId, playerName,
   }
 
   // After applying the action, figure out who’s next
-  const nextTurn = getNextActivePlayer(data, localPlayerId);
+  const nextTurn = getNextActivePlayer(data.players, localPlayerId);
 
   // If no next active player → end round
   if (!nextTurn) {
@@ -136,17 +149,10 @@ export async function performAction(gameId, gameData, localPlayerId, playerName,
 }
 
 // Helper function for Raise
-async function buildRaiseAction(gameRef, localPlayerId, baseAction) {
-  const snap = await getDoc(gameRef);
-  if (!snap.exists()) return {};
-
-  const data = snap.data();
-  const currentConfidence = data.confidence || 0;
-  const newConfidence = currentConfidence + 1;
-
+async function buildRaiseAction(gameRef, localPlayerId, value) {
   return {
-    confidence: newConfidence, // global confidence increment
-    [`players.${localPlayerId}.roundConfidence`]: newConfidence,
+    confidence: value, // Set global confidence to the new raised value
+    [`players.${localPlayerId}.roundConfidence`]: value,
   };
 }
 
@@ -195,10 +201,82 @@ async function checkRoundStillActive(gameRef) {
       [`players.${winnerId}.totalConfidence`]:
         (players[winnerId].totalConfidence || 0) + confidence,
       roundActive: false,
+      currentTurn: null,
       winner: winnerId,
     };
 
     await updateDoc(gameRef, updates);
+    await checkGameWinCondition(gameRef, winnerId, updates[`players.${winnerId}.totalConfidence`]);
+    return;
+  }
+
+  // 2. Showdown Detection
+  // Condition: More than 1 player, everyone matched confidence, everyone acted
+  const globalConfidence = data.confidence || 0;
+  const allMatched = activePlayers.every(pid => (players[pid].roundConfidence || 0) === globalConfidence);
+
+  // Heuristic: If everyone matched and we have enough actions.
+  // A simple proxy is if actions.length >= activePlayers.length (everyone had a chance).
+  // Note: This is a simplification. In a real app, we'd track "actors this street".
+  if (allMatched && data.actions.length >= activePlayers.length) {
+    await evaluateShowdown(gameRef, data, activePlayers);
+  }
+}
+
+async function evaluateShowdown(gameRef, data, activePlayerIds) {
+  const hands = data.hands;
+  const faceUps = data.faceUps;
+
+  const solvedHands = activePlayerIds.map(pid => {
+    const playerHand = hands[pid];
+    const fullHand = [...playerHand, ...faceUps];
+    const solved = Hand.solve(fullHand);
+    solved.playerId = pid;
+    return solved;
+  });
+
+  const winners = Hand.winners(solvedHands);
+  const winnerIds = winners.map(w => w.playerId);
+
+  const confidence = data.confidence || 0;
+  const updates = {
+    roundActive: false,
+    currentTurn: null,
+    winner: winnerIds.join(', '),
+    winReason: winners[0].descr
+  };
+
+  // Scoring Logic: Winner +Conf, Loser -Conf
+  const players = data.players;
+
+  for (const pid of activePlayerIds) {
+    const currentScore = players[pid].totalConfidence || 0;
+    let newScore = currentScore;
+
+    if (winnerIds.includes(pid)) {
+      newScore += confidence;
+    } else {
+      newScore -= confidence;
+    }
+
+    updates[`players.${pid}.totalConfidence`] = newScore;
+
+    // Check win condition (50 points)
+    if (newScore >= 50) {
+      updates.status = 'ended';
+      updates.gameWinner = pid;
+    }
+  }
+
+  await updateDoc(gameRef, updates);
+}
+
+async function checkGameWinCondition(gameRef, playerId, score) {
+  if (score >= 50) {
+    await updateDoc(gameRef, {
+      status: 'ended',
+      gameWinner: playerId
+    });
   }
 }
 

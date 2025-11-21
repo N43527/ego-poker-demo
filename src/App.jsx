@@ -97,7 +97,7 @@ function App() {
           gameData={gameData}
           localPlayerId={localPlayerId}
           startGame={() => startGame(gameId, gameData)}
-          performAction={(action) => performAction(gameId, gameData, localPlayerId, playerName, action)}
+          performAction={(action, value) => performAction(gameId, gameData, localPlayerId, playerName, action, value)}
           endGame={() => endGame(gameId)}
           messageInput={messageInput}
           setMessageInput={setMessageInput}

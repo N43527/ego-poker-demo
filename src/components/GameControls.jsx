@@ -1,5 +1,4 @@
-// src/components/GameControls.jsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function GameControls({ gameData, localPlayerId, performAction, endGame }) {
   if (!gameData) return null;
@@ -7,13 +6,36 @@ export default function GameControls({ gameData, localPlayerId, performAction, e
   const isMyTurn = gameData.currentTurn === localPlayerId;
   const isHost = gameData.host === localPlayerId;
 
+  const globalConfidence = gameData.confidence || 0;
+  const [raiseAmount, setRaiseAmount] = useState(globalConfidence + 1);
+
+  useEffect(() => {
+    if (raiseAmount <= globalConfidence) setRaiseAmount(globalConfidence + 1);
+  }, [globalConfidence]);
+
   return (
     <div>
       {isMyTurn && (
         <div>
           <button onClick={() => performAction('Fold')}>Fold</button>
           <button onClick={() => performAction('Call')}>Call</button>
-          <button onClick={() => performAction('Raise')}>Raise</button>
+
+          <div style={{ marginTop: '10px' }}>
+            {globalConfidence < 10 && (
+              <>
+                <input
+                  type="range"
+                  min={globalConfidence + 1}
+                  max="10"
+                  value={raiseAmount}
+                  onChange={(e) => setRaiseAmount(parseInt(e.target.value))}
+                />
+                <button onClick={() => performAction('Raise', raiseAmount)}>
+                  Raise to {raiseAmount}
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
       {isHost && <button onClick={endGame}>End Game</button>}

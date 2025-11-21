@@ -10,7 +10,7 @@ function PlayerList({ players, localPlayerId }) {
       <ul>
         {Object.entries(players).map(([id, player]) => (
           <li key={id}>
-            {player.name} {id === localPlayerId ? "(You)" : ""}
+            {player.name} {id === localPlayerId ? "(You)" : ""} - Score: {player.totalConfidence || 0}
           </li>
         ))}
       </ul>
