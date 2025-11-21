@@ -23,15 +23,46 @@ export default function GameScreen({
   const isHost = host === localPlayerId;
   const yourTurn = currentTurn === localPlayerId;
 
+  const [showGameOver, setShowGameOver] = React.useState(false);
+
   // Auto-start next round if everyone is ready (Host only)
   React.useEffect(() => {
-    if (isHost && !gameData.roundActive && gameData.winner) {
+    if (isHost && !gameData.roundActive && gameData.winner && status !== 'ended') {
       const allReady = Object.values(players).every(p => p.ready);
       if (allReady) {
         startNextRound();
       }
     }
-  }, [gameData, isHost, startNextRound]);
+  }, [gameData, isHost, startNextRound, status]);
+
+  if (showGameOver) {
+    return (
+      <div style={{ textAlign: 'center', padding: '20px' }}>
+        <h1 style={{ fontSize: '48px' }}>🏆 Game Over 🏆</h1>
+        {gameData.gameWinner && (
+          <h2>Winner: {players[gameData.gameWinner]?.name || gameData.gameWinner}</h2>
+        )}
+
+        <h3>Final Scores:</h3>
+        <ul style={{ listStyle: 'none', padding: 0 }}>
+          {Object.entries(players)
+            .sort(([, a], [, b]) => b.totalConfidence - a.totalConfidence)
+            .map(([id, p]) => (
+              <li key={id} style={{ fontSize: '18px', margin: '5px 0' }}>
+                {p.name}: {p.totalConfidence}
+              </li>
+            ))}
+        </ul>
+
+        <button
+          onClick={() => window.location.reload()}
+          style={{ marginTop: '20px', padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}
+        >
+          Back to Lobby
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -43,7 +74,7 @@ export default function GameScreen({
         <button onClick={startGame}>Start Game</button>
       )}
 
-      {status === 'in-progress' && (
+      {(status === 'in-progress' || status === 'ended') && (
         <div>
           <h3>Your Hand:</h3>
           <p>{hands[localPlayerId]?.join(', ') || 'Not dealt'}</p>
@@ -68,58 +99,44 @@ export default function GameScreen({
             ))}
           </ul>
 
-          <GameControls
-            gameData={gameData}
-            localPlayerId={localPlayerId}
-            performAction={performAction}
-            endGame={endGame}
-          />
-        </div>
-      )}
-
-      {status === 'ended' && (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <h1 style={{ fontSize: '48px' }}>🏆 Game Over 🏆</h1>
-          {gameData.gameWinner && (
-            <h2>Winner: {players[gameData.gameWinner]?.name || gameData.gameWinner}</h2>
+          {status === 'in-progress' && (
+            <GameControls
+              gameData={gameData}
+              localPlayerId={localPlayerId}
+              performAction={performAction}
+              endGame={endGame}
+            />
           )}
-
-          <h3>Final Scores:</h3>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {Object.entries(players)
-              .sort(([, a], [, b]) => b.totalConfidence - a.totalConfidence)
-              .map(([id, p]) => (
-                <li key={id} style={{ fontSize: '18px', margin: '5px 0' }}>
-                  {p.name}: {p.totalConfidence}
-                </li>
-              ))}
-          </ul>
-
-          <button
-            onClick={() => window.location.reload()}
-            style={{ marginTop: '20px', padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}
-          >
-            Back to Lobby
-          </button>
         </div>
       )}
 
       {!gameData.roundActive && gameData.winner && (
         <div style={{ marginTop: '20px', textAlign: 'center' }}>
-          {!players[localPlayerId]?.ready ? (
+          {status === 'ended' ? (
             <button
-              onClick={setPlayerReady}
-              style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
+              onClick={() => setShowGameOver(true)}
+              style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
             >
-              Ready for Next Round
+              See Final Results
             </button>
           ) : (
-            <p>Waiting for other players...</p>
-          )}
+            <>
+              {!players[localPlayerId]?.ready ? (
+                <button
+                  onClick={setPlayerReady}
+                  style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
+                >
+                  Ready for Next Round
+                </button>
+              ) : (
+                <p>Waiting for other players...</p>
+              )}
 
-          <p style={{ fontSize: '12px', color: '#666' }}>
-            {Object.values(players).filter(p => p.ready).length} / {Object.keys(players).length} players ready
-          </p>
+              <p style={{ fontSize: '12px', color: '#666' }}>
+                {Object.values(players).filter(p => p.ready).length} / {Object.keys(players).length} players ready
+              </p>
+            </>
+          )}
         </div>
       )}
 

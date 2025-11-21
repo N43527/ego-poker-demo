@@ -7,11 +7,6 @@ export default function GameControls({ gameData, localPlayerId, performAction, e
   const isHost = gameData.host === localPlayerId;
 
   const globalConfidence = gameData.confidence || 0;
-  const [raiseAmount, setRaiseAmount] = useState(globalConfidence + 1);
-
-  useEffect(() => {
-    setRaiseAmount(globalConfidence + 1);
-  }, [globalConfidence]);
 
   return (
     <div>
@@ -21,20 +16,27 @@ export default function GameControls({ gameData, localPlayerId, performAction, e
           <button onClick={() => performAction('Call')}>Call</button>
 
           <div style={{ marginTop: '10px' }}>
-            {globalConfidence < 10 && (
-              <>
-                <input
-                  type="range"
-                  min={globalConfidence + 1}
-                  max="10"
-                  value={raiseAmount}
-                  onChange={(e) => setRaiseAmount(parseInt(e.target.value))}
-                />
-                <button onClick={() => performAction('Raise', raiseAmount)}>
-                  Raise to {raiseAmount}
+            <p style={{ margin: '5px 0', fontSize: '14px' }}>Raise to:</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '5px', maxWidth: '300px' }}>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
+                <button
+                  key={val}
+                  disabled={val <= globalConfidence}
+                  onClick={() => performAction('Raise', val)}
+                  style={{
+                    padding: '8px',
+                    backgroundColor: val <= globalConfidence ? '#ccc' : '#2196F3',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: val <= globalConfidence ? 'not-allowed' : 'pointer',
+                    opacity: val <= globalConfidence ? 0.6 : 1
+                  }}
+                >
+                  {val}
                 </button>
-              </>
-            )}
+              ))}
+            </div>
           </div>
         </div>
       )}
