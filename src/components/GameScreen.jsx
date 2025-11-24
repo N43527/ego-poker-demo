@@ -64,7 +64,7 @@ export default function GameScreen({
   }
 
   // Calculate positions for circular table
-  const playerIds = Object.keys(players);
+  const playerIds = Object.keys(players).sort();
   const totalPlayers = playerIds.length;
   const myIndex = playerIds.indexOf(localPlayerId);
 

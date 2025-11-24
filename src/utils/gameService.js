@@ -199,7 +199,7 @@ function buildFoldAction(localPlayerId) {
 }
 
 function getNextActivePlayer(players, currentPlayerId) {
-  const playerIds = Object.keys(players);
+  const playerIds = Object.keys(players).sort();
   const total = playerIds.length;
   const currentIndex = playerIds.indexOf(currentPlayerId);
 
