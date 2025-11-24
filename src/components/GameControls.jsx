@@ -15,22 +15,25 @@ export default function GameControls({ gameData, localPlayerId, performAction, e
           <button onClick={() => performAction('Fold')}>Fold</button>
           <button onClick={() => performAction('Call')}>Call</button>
 
-          <div style={{ marginTop: '10px' }}>
-            <p style={{ margin: '5px 0', fontSize: '14px' }}>Raise to:</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '5px', maxWidth: '300px' }}>
+          <div style={{ marginTop: '15px' }}>
+            <p style={{ margin: '5px 0', fontSize: '14px', color: 'var(--text-secondary)' }}>RAISE CONFIDENCE:</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', maxWidth: '350px' }}>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
                 <button
                   key={val}
                   disabled={val <= globalConfidence}
                   onClick={() => performAction('Raise', val)}
                   style={{
-                    padding: '8px',
-                    backgroundColor: val <= globalConfidence ? '#ccc' : '#2196F3',
-                    color: 'white',
+                    padding: '12px',
+                    background: val <= globalConfidence ? '#2a2a35' : 'var(--accent-gradient)',
+                    color: val <= globalConfidence ? '#555' : '#000',
                     border: 'none',
-                    borderRadius: '4px',
+                    borderRadius: '6px',
+                    fontWeight: 'bold',
+                    fontSize: '16px',
                     cursor: val <= globalConfidence ? 'not-allowed' : 'pointer',
-                    opacity: val <= globalConfidence ? 0.6 : 1
+                    opacity: val <= globalConfidence ? 0.5 : 1,
+                    boxShadow: val > globalConfidence ? '0 0 10px rgba(188, 19, 254, 0.4)' : 'none'
                   }}
                 >
                   {val}
