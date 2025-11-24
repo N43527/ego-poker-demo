@@ -75,23 +75,24 @@ function App() {
 
   // --- UI ---
   return (
-    <div style={{ fontFamily: 'sans-serif', padding: '20px' }}>
-      <h1>♠ Ego Poker Demo Lobby</h1>
-
+    <div style={{ fontFamily: 'sans-serif', height: '100vh', overflow: 'hidden' }}>
       {!gameId ? (
-        <Lobby
-          isRegistered={isRegistered}
-          playerName={playerName}
-          setPlayerName={setPlayerName}
-          passkey={passkey}
-          setPasskey={setPasskey}
-          registerProfile={registerProfile}
-          reconnectWithPasskey={reconnectWithPasskey}
-          createGame={() => createGame(localPlayerId, playerName, setGameId)}
-          joinInput={joinInput}
-          setJoinInput={setJoinInput}
-          joinGame={() => joinGame(localPlayerId, playerName, joinInput, setGameId)}
-        />
+        <div style={{ padding: '20px' }}>
+          <h1>♠ Ego Poker Demo Lobby</h1>
+          <Lobby
+            isRegistered={isRegistered}
+            playerName={playerName}
+            setPlayerName={setPlayerName}
+            passkey={passkey}
+            setPasskey={setPasskey}
+            registerProfile={registerProfile}
+            reconnectWithPasskey={reconnectWithPasskey}
+            createGame={() => createGame(localPlayerId, playerName, setGameId)}
+            joinInput={joinInput}
+            setJoinInput={setJoinInput}
+            joinGame={() => joinGame(localPlayerId, playerName, joinInput, setGameId)}
+          />
+        </div>
       ) : (
         <GameScreen
           gameData={gameData}
