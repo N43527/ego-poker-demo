@@ -29,7 +29,8 @@ export async function createGame(localPlayerId, playerName, setGameId) {
     roundActive: true,
     currentTurn: null,
     deck: [],
-    faceUps: []
+    faceUps: [],
+    currentActors: []
   });
 
   setGameId(newGameId);
@@ -101,6 +102,7 @@ export async function startRound(gameId, gameData) {
   updates.deck = deck;
   updates.hands = hands;
   updates.faceUps = faceUps;
+  updates.currentActors = [];
   updates.confidence = 1;
   updates.actions = [];
   updates.currentTurn = nextTurn;
@@ -152,18 +154,23 @@ export async function performAction(gameId, gameData, localPlayerId, playerName,
     }
     const raiseAction = await buildRaiseAction(gameRef, localPlayerId, value);
     updatePayload = { ...updatePayload, ...raiseAction };
+
+    // CRITICAL: Reset actors on raise, but include the raiser
+    updatePayload.currentActors = [localPlayerId];
   }
 
   // If the player CALLS → match the global confidence
   if (action === "Call") {
     const currentConfidence = data.confidence || 0;
     updatePayload[`players.${localPlayerId}.roundConfidence`] = currentConfidence;
+    updatePayload.currentActors = arrayUnion(localPlayerId);
   }
 
   // If the player FOLDS → mark them as folded
   if (action === "Fold") {
     const foldAction = buildFoldAction(localPlayerId);
     updatePayload = { ...updatePayload, ...foldAction };
+    // Folded players don't need to be in currentActors, but keeping them out is fine
   }
 
   // After applying the action, figure out who’s next
@@ -214,13 +221,13 @@ function getNextActivePlayer(players, currentPlayerId) {
   return null;
 }
 
-
 async function checkRoundStillActive(gameRef) {
   const snap = await getDoc(gameRef);
   if (!snap.exists()) return;
 
   const data = snap.data();
   const players = data.players || {};
+  const currentActors = data.currentActors || [];
 
   // Get all active players (not folded)
   const activePlayers = Object.entries(players)
@@ -229,6 +236,7 @@ async function checkRoundStillActive(gameRef) {
 
   // If only one player remains → they win this round
   if (activePlayers.length === 1) {
+    // ... (Win logic same as before)
     const winnerId = activePlayers[0];
     const confidence = data.confidence || 0;
 
@@ -246,14 +254,14 @@ async function checkRoundStillActive(gameRef) {
   }
 
   // 2. Showdown Detection
-  // Condition: More than 1 player, everyone matched confidence, everyone acted
+  // Condition: Everyone active has acted at the current confidence level
   const globalConfidence = data.confidence || 0;
   const allMatched = activePlayers.every(pid => (players[pid].roundConfidence || 0) === globalConfidence);
 
-  // Heuristic: If everyone matched and we have enough actions.
-  // A simple proxy is if actions.length >= activePlayers.length (everyone had a chance).
-  // Note: This is a simplification. In a real app, we'd track "actors this street".
-  if (allMatched && data.actions.length >= activePlayers.length) {
+  // Check if every active player is in the currentActors list
+  const allActed = activePlayers.every(pid => currentActors.includes(pid));
+
+  if (allMatched && allActed) {
     await evaluateShowdown(gameRef, data, activePlayers);
   }
 }
