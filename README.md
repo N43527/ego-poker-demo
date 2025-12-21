@@ -1,12 +1,39 @@
-# React + Vite
+# Ego Poker ♠️
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A psychological poker variant built with React and Firebase.
 
-Currently, two official plugins are available:
+## 🌟 Current Status: Stable Demo (v1.0)
+This version represents the stable, functional "MVP" of the Ego Poker application before a planned major architectural refactor. All core game mechanics, multiplayer synchronization, and UI themes are working.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Features
+-   **Multiplayer Lobby**: Create games, join via 4-letter codes.
+-   **Real-time Gameplay**: Powered by Firebase Firestore.
+-   **Game Logic**:
+    -   5 Community Cards (Face Up).
+    -   "Confidence" Betting System (1-10).
+    -   Showdown evaluation using `pokersolver`.
+    -   Scoring system (+/- Confidence points).
+-   **UI**: Modern "Neon Dark" aesthetic with split layout and circular table.
 
-## Expanding the ESLint configuration
+## 🛠️ Tech Stack
+-   **Frontend**: React, Vite
+-   **Backend**: Firebase Firestore (Serverless)
+-   **Styling**: CSS Modules / Global CSS
+-   **State Management**: React Hooks + Firestore Subscription
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🚀 How to Run
+1.  **Install Dependencies**:
+    ```bash
+    npm install
+    ```
+2.  **Start Development Server**:
+    ```bash
+    npm run dev
+    ```
+3.  **Build for Production**:
+    ```bash
+    npm run build
+    ```
+
+## ⚠️ Note on Refactor
+The `main` branch is about to undergo a transition to an **Object-Oriented Architecture** (Layered Pattern). If looking for the functional-style implementation, refer to the commit tagged `stable-v1-functional`.
