@@ -1,5 +1,5 @@
-const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
-const SUITS = ['h', 'd', 'c', 's'];
+export const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
+export const SUITS = ['h', 'd', 'c', 's'];
 
 class Card {
     constructor(rank, suit) {
