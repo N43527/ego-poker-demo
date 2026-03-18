@@ -2,6 +2,8 @@
 
 A psychological poker variant built with React and Firebase.
 
+**Playabale at https://ego-demo.web.app/**
+
 ## 🌟 Current Status: Stable Demo (v1.0)
 This version represents the stable, functional "MVP" of the Ego Poker application before a planned major architectural refactor. All core game mechanics, multiplayer synchronization, and UI themes are working.
 
