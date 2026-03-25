@@ -522,6 +522,29 @@
 .stratego-piece.hidden-piece.red   { border-color: rgba(239, 68, 68, 0.4); }
 .stratego-piece.hidden-piece.blue  { border-color: rgba(59, 130, 246, 0.4); }
 
+/* Known to opponent — your piece that the enemy has seen */
+.stratego-piece.known-to-opponent {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2), 0 0 8px rgba(255, 255, 255, 0.1);
+}
+
+.stratego-known-badge {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 16px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
+  border-radius: 50%;
+  font-size: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
 /* Perceived rank — Certain (green solid glow) */
 .stratego-piece.perceived-certain {
   background: linear-gradient(145deg, #065f46, #064e3b);
@@ -813,6 +836,15 @@
 .stratego-battle-piece-label {
   font-size: 0.85rem;
   color: var(--stg-text-dim);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.stratego-battle-piece-sub {
+  font-size: 0.7rem;
+  opacity: 0.6;
+  text-transform: capitalize;
 }
 
 .stratego-battle-vs {
@@ -875,7 +907,6 @@
   gap: 8px;
   padding: 4px 6px;
   border-radius: 5px;
-  cursor: pointer;
   transition: all var(--stg-transition);
   user-select: none;
 }
@@ -955,6 +986,16 @@
   color: var(--stg-text-dim);
   text-align: center;
   opacity: 0.6;
+}
+
+.stratego-captured-divider {
+  height: 1px;
+  background: var(--stg-border);
+  margin: 10px 0;
+}
+
+.stratego-captured-section {
+  margin-bottom: 4px;
 }
 
 /* ========== GAME HEADER ========== */

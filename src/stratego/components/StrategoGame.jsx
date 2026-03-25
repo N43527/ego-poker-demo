@@ -174,7 +174,7 @@ export default function StrategoGame({ gameData, gameId, localPlayerId, myColor,
     const confidence = note?.confidence;
     const hasTextNote = note?.text;
 
-    const showActualRank = isMine; // only show MY pieces' ranks
+    const showActualRank = isMine || piece.revealed; // revealed after surviving a battle
     const showPerceivedRank = !showActualRank && perceivedRank != null;
     const isHidden = !showActualRank && !showPerceivedRank;
 
@@ -192,12 +192,16 @@ export default function StrategoGame({ gameData, gameId, localPlayerId, myColor,
     if (isHidden) pieceClass += ' hidden-piece';
     if (showPerceivedRank && confidence === 'certain') pieceClass += ' perceived-certain';
     if (showPerceivedRank && confidence === 'probable') pieceClass += ' perceived-probable';
+    if (isMine && piece.revealed) pieceClass += ' known-to-opponent';
     if (isSelected) pieceClass += ' selected-piece';
 
     // Build tooltip text
     let tooltipText = '';
+    if (isMine && piece.revealed) {
+      tooltipText += 'Opponent knows this piece';
+    }
     if (perceivedRank != null) {
-      tooltipText += `Guessed: ${getPieceName(perceivedRank)} (${confidence === 'certain' ? '100%' : 'probable'})`;
+      tooltipText += (tooltipText ? '\n' : '') + `Guessed: ${getPieceName(perceivedRank)} (${confidence === 'certain' ? '100%' : 'probable'})`;
     }
     if (hasTextNote) {
       tooltipText += (tooltipText ? '\n' : '') + note.text;
@@ -206,10 +210,15 @@ export default function StrategoGame({ gameData, gameId, localPlayerId, myColor,
     return (
       <div
         className={pieceClass}
-        onMouseEnter={() => tooltipText && setHoverNote(piece.id)}
+        onMouseEnter={() => (tooltipText || (isMine && piece.revealed)) && setHoverNote(piece.id)}
         onMouseLeave={() => setHoverNote(null)}
       >
         {displayContent}
+
+        {/* "Known to opponent" eye badge — on my pieces the opponent can see */}
+        {isMine && piece.revealed && (
+          <span className="stratego-known-badge" title="Opponent knows this piece">👁</span>
+        )}
 
         {/* Note badge — shown if there's a text note AND no perceived rank (rank is its own visual) */}
         {hasTextNote && !showPerceivedRank && (
@@ -298,7 +307,10 @@ export default function StrategoGame({ gameData, gameId, localPlayerId, myColor,
           })()}
         </div>
 
-        <StrategoCapturedPanel gameId={gameId} myColor={myColor} />
+        <StrategoCapturedPanel
+          capturedPieces={gameData.capturedPieces || []}
+          myColor={myColor}
+        />
       </div>
 
       {/* Last move description */}

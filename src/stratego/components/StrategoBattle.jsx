@@ -7,76 +7,48 @@ export default function StrategoBattle({ battle, myColor, onDismiss }) {
 
   const { attackerPiece, defenderPiece, result } = battle;
 
-  const iAmAttacker = attackerPiece.color === myColor;
-  const myPiece = iAmAttacker ? attackerPiece : defenderPiece;
-  const opponentPiece = iAmAttacker ? defenderPiece : attackerPiece;
-
-  // Determine outcome from my perspective
-  const iWon = (iAmAttacker && result === 'attacker') || (!iAmAttacker && result === 'defender');
-  const iLost = (iAmAttacker && result === 'defender') || (!iAmAttacker && result === 'attacker');
-  const draw = result === 'both';
-
-  // Bomb exception: if I attacked and lost to a bomb, I learn it was a bomb
-  const wasBombed = iAmAttacker && defenderPiece.rank === 'B' && result === 'defender';
-
-  // Equal rank: both die → I can deduce they had my same rank
-  const equalRank = draw;
-
   // Result text
   let resultText, resultClass;
-  if (draw) {
-    resultText = `Your ${getPieceName(myPiece.rank)} clashed with an equal rank — both destroyed!`;
+  if (result === 'both') {
+    resultText = `Both ${getPieceName(attackerPiece.rank)}s destroyed — equal rank!`;
     resultClass = 'draw';
-  } else if (iWon) {
-    resultText = `Your ${getPieceName(myPiece.rank)} won the engagement!`;
-    resultClass = 'win';
-  } else if (wasBombed) {
-    resultText = `Your ${getPieceName(myPiece.rank)} was bombed! 💣`;
-    resultClass = 'lose';
+  } else if (result === 'attacker') {
+    resultText = `${getPieceName(attackerPiece.rank)} (${attackerPiece.color}) defeats ${getPieceName(defenderPiece.rank)} (${defenderPiece.color})!`;
+    resultClass = attackerPiece.color === myColor ? 'win' : 'lose';
   } else {
-    resultText = `Your ${getPieceName(myPiece.rank)} was defeated!`;
-    resultClass = 'lose';
+    resultText = `${getPieceName(defenderPiece.rank)} (${defenderPiece.color}) defeats ${getPieceName(attackerPiece.rank)} (${attackerPiece.color})!`;
+    resultClass = defenderPiece.color === myColor ? 'win' : 'lose';
   }
 
-  // What to show for the opponent piece
-  let opponentDisplay, opponentLabel;
-  if (wasBombed) {
-    opponentDisplay = '💣';
-    opponentLabel = 'Bomb';
-  } else if (equalRank) {
-    opponentDisplay = getPieceDisplayRank(myPiece); // same rank as mine
-    opponentLabel = getPieceName(myPiece.rank);
-  } else {
-    opponentDisplay = '?';
-    opponentLabel = 'Unknown';
-  }
-
-  const opponentColor = opponentPiece.color;
+  const attackerLost = result === 'defender' || result === 'both';
+  const defenderLost = result === 'attacker' || result === 'both';
 
   return (
     <div className="stratego-battle-overlay" onClick={onDismiss}>
       <div className="stratego-battle-card" onClick={e => e.stopPropagation()}>
         <div className="stratego-battle-title">⚔️ Battle!</div>
         <div className="stratego-battle-pieces">
-          {/* My piece — fully revealed */}
+          {/* Attacker — fully revealed */}
           <div className="stratego-battle-piece">
-            <div className={`stratego-battle-piece-icon ${myPiece.color} ${iLost ? 'loser' : ''}`}>
-              {getPieceDisplayRank(myPiece)}
+            <div className={`stratego-battle-piece-icon ${attackerPiece.color} ${attackerLost ? 'loser' : ''}`}>
+              {getPieceDisplayRank(attackerPiece)}
             </div>
             <div className="stratego-battle-piece-label">
-              {getPieceName(myPiece.rank)} (You)
+              {getPieceName(attackerPiece.rank)}
+              <span className="stratego-battle-piece-sub">{attackerPiece.color} · attacker</span>
             </div>
           </div>
 
           <div className="stratego-battle-vs">VS</div>
 
-          {/* Opponent piece — hidden unless bomb/equal */}
+          {/* Defender — fully revealed */}
           <div className="stratego-battle-piece">
-            <div className={`stratego-battle-piece-icon ${opponentColor} ${iWon ? 'loser' : ''} ${opponentDisplay === '?' ? 'mystery' : ''}`}>
-              {opponentDisplay}
+            <div className={`stratego-battle-piece-icon ${defenderPiece.color} ${defenderLost ? 'loser' : ''}`}>
+              {getPieceDisplayRank(defenderPiece)}
             </div>
             <div className="stratego-battle-piece-label">
-              {opponentLabel} ({opponentColor})
+              {getPieceName(defenderPiece.rank)}
+              <span className="stratego-battle-piece-sub">{defenderPiece.color} · defender</span>
             </div>
           </div>
         </div>

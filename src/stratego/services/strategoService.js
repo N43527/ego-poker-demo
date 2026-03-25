@@ -1,5 +1,5 @@
 // src/stratego/services/strategoService.js
-import { doc, setDoc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, onSnapshot, arrayUnion } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { resolveBattle } from '../utils/strategoRules';
 
@@ -22,6 +22,7 @@ export async function createStrategoGame(localPlayerId, playerName) {
     winner: null,
     winnerName: null,
     chatLog: [],
+    capturedPieces: [],
     createdAt: Date.now(),
   });
   return gameId;
@@ -92,7 +93,8 @@ export async function makeMove(gameId, playerId, fromPos, toPos) {
 
     if (result === 'attacker') {
       updates[`board.${fromPos}`] = null;
-      updates[`board.${toPos}`] = { ...attacker };
+      updates[`board.${toPos}`] = { ...attacker, revealed: true };
+      updates.capturedPieces = arrayUnion({ rank: defender.rank, color: defender.color });
       if (defender.rank === 'F') {
         updates.winner = playerId;
         updates.winnerName = data.players[playerId].name;
@@ -100,10 +102,15 @@ export async function makeMove(gameId, playerId, fromPos, toPos) {
       }
     } else if (result === 'defender') {
       updates[`board.${fromPos}`] = null;
-      updates[`board.${toPos}`] = { ...defender };
+      updates[`board.${toPos}`] = { ...defender, revealed: true };
+      updates.capturedPieces = arrayUnion({ rank: attacker.rank, color: attacker.color });
     } else {
       updates[`board.${fromPos}`] = null;
       updates[`board.${toPos}`] = null;
+      updates.capturedPieces = arrayUnion(
+        { rank: attacker.rank, color: attacker.color },
+        { rank: defender.rank, color: defender.color }
+      );
     }
   } else {
     // --- Simple move ---
